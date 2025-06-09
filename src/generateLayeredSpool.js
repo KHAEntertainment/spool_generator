@@ -47,9 +47,19 @@ async function generateLayeredSpoolImage({
   const bgImagePath = path.join(__dirname, '../public/spool_placeholder_bg.png');
   const fgImagePath = path.join(__dirname, '../public/spool_placeholder_fg.png');
 
-  // Convert to file URLs for Puppeteer
-  const bgImageUrl = `file://${bgImagePath}`;
-  const fgImageUrl = `file://${fgImagePath}`;
+  // Verify images exist
+  if (!fs.existsSync(bgImagePath)) {
+    throw new Error(`Background image not found: ${bgImagePath}`);
+  }
+  if (!fs.existsSync(fgImagePath)) {
+    throw new Error(`Foreground image not found: ${fgImagePath}`);
+  }
+
+  // Convert to base64 data URLs for better Puppeteer compatibility
+  const bgImageData = fs.readFileSync(bgImagePath);
+  const fgImageData = fs.readFileSync(fgImagePath);
+  const bgImageBase64 = `data:image/png;base64,${bgImageData.toString('base64')}`;
+  const fgImageBase64 = `data:image/png;base64,${fgImageData.toString('base64')}`;
 
   // Calculate positioning
   const centerX = 256;
@@ -63,7 +73,7 @@ async function generateLayeredSpoolImage({
   const bottomEndX = centerX + bottomX - archCurve;
   const bottomCenterY = centerY + bottomY;
 
-  // Create HTML template
+  // Create HTML template with base64 images
   const html = `<!DOCTYPE html>
   <html>
     <head>
@@ -103,8 +113,8 @@ async function generateLayeredSpoolImage({
     </head>
     <body>
       <div class="container">
-        <img src="${bgImageUrl}" class="spool-bg" alt="Spool Background">
-        <img src="${fgImageUrl}" class="spool-fg" alt="Spool Faceplate">
+        <img src="${bgImageBase64}" class="spool-bg" alt="Spool Background">
+        <img src="${fgImageBase64}" class="spool-fg" alt="Spool Faceplate">
         <svg class="spool-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
           <defs>
             <path id="topArc" d="M ${topStartX} ${topCenterY} A ${archCurve} 50 0 0 1 ${topEndX} ${topCenterY}" fill="none" />
@@ -112,14 +122,14 @@ async function generateLayeredSpoolImage({
           </defs>
           
           <!-- Top text with arch -->
-          <text fill="${textColor}" font-family="Arial" font-size="${fontSize}" ${skewX !== 0 ? `transform="skewX(${skewX})"` : ''}>
+          <text fill="${textColor}" font-family="Arial" font-size="${fontSize}" font-weight="bold" ${skewX !== 0 ? `transform="skewX(${skewX})"` : ''}>
             <textPath href="#topArc" startOffset="50%" text-anchor="middle">
               ${topText}
             </textPath>
           </text>
           
           <!-- Bottom text with arch -->
-          <text fill="${textColor}" font-family="Arial" font-size="${fontSize}" ${skewX !== 0 ? `transform="skewX(${skewX})"` : ''}>
+          <text fill="${textColor}" font-family="Arial" font-size="${fontSize}" font-weight="bold" ${skewX !== 0 ? `transform="skewX(${skewX})"` : ''}>
             <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">
               ${bottomText}
             </textPath>
@@ -150,10 +160,13 @@ async function generateLayeredSpoolImage({
     // Set content and wait for images to load
     await page.setContent(html, { waitUntil: "networkidle0" });
 
-    // Take screenshot with transparent background
+    // Wait a bit more for images to fully render
+    await page.waitForTimeout(1000);
+
+    // Take screenshot with white background (not transparent) to ensure images show
     const buffer = await page.screenshot({
       type: "png",
-      omitBackground: true,
+      omitBackground: false,
       clip: { x: 0, y: 0, width: 512, height: 512 },
     });
 

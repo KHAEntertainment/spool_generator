@@ -613,7 +613,7 @@
             }, 3000);
         }
 
-        // Generate final image
+        // Generate final image with preview
         async function generateImage() {
             elements.generateBtn.disabled = true;
             elements.generateBtn.textContent = '⏳ Generating...';
@@ -637,29 +637,187 @@
                 const response = await fetch(`/generate-layered-spool?${params}`);
                 
                 if (response.ok) {
+                    // Get the blob from response
                     const blob = await response.blob();
+                    
+                    // Create a temporary URL for the blob
                     const url = URL.createObjectURL(blob);
                     
-                    // Create download link
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `spool_${Date.now()}.png`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    // Show preview modal
+                    showPreviewModal(url, blob);
                     
-                    showStatus('✅ Spool generated successfully!', 'success');
+                    showStatus('✅ Spool generated! Preview ready.', 'success');
                 } else {
-                    throw new Error('Generation failed');
+                    const errorText = await response.text();
+                    console.error('Server response:', errorText);
+                    throw new Error(`Generation failed: ${response.status} ${response.statusText}`);
                 }
             } catch (error) {
                 console.error('Generation error:', error);
-                showStatus('❌ Generation failed. Please try again.', 'error');
+                showStatus(`❌ Generation failed: ${error.message}`, 'error');
             } finally {
                 elements.generateBtn.disabled = false;
                 elements.generateBtn.textContent = '🚀 Generate Final Image';
             }
+        }
+
+        // Show preview modal with generated image
+        function showPreviewModal(imageUrl, blob) {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                backdrop-filter: blur(5px);
+            `;
+            
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
+                padding: 30px;
+                text-align: center;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                max-width: 90vw;
+                max-height: 90vh;
+            `;
+            
+            // Create preview image
+            const previewImg = document.createElement('img');
+            previewImg.src = imageUrl;
+            previewImg.style.cssText = `
+                max-width: 512px;
+                max-height: 512px;
+                border-radius: 10px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                margin-bottom: 20px;
+            `;
+            
+            // Create title
+            const title = document.createElement('h3');
+            title.textContent = '🎯 Generated Spool Preview';
+            title.style.cssText = `
+                color: white;
+                margin: 0 0 20px 0;
+                font-size: 24px;
+            `;
+            
+            // Create button container
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = `
+                display: flex;
+                gap: 15px;
+                justify-content: center;
+                flex-wrap: wrap;
+            `;
+            
+            // Create download button
+            const downloadBtn = document.createElement('button');
+            downloadBtn.textContent = '💾 Download Image';
+            downloadBtn.style.cssText = `
+                background: linear-gradient(135deg, #4CAF50, #45a049);
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 10px;
+                cursor: pointer;
+                font-size: 16px;
+                font-weight: bold;
+                transition: transform 0.2s;
+            `;
+            downloadBtn.onmouseover = () => downloadBtn.style.transform = 'scale(1.05)';
+            downloadBtn.onmouseout = () => downloadBtn.style.transform = 'scale(1)';
+            downloadBtn.onclick = () => {
+                // Create download link
+                const a = document.createElement('a');
+                a.href = imageUrl;
+                a.download = `spool_${Date.now()}.png`;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Close modal
+                document.body.removeChild(modal);
+                URL.revokeObjectURL(imageUrl);
+                
+                showStatus('✅ Spool downloaded successfully!', 'success');
+            };
+            
+            // Create close button
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '❌ Close';
+            closeBtn.style.cssText = `
+                background: linear-gradient(135deg, #f44336, #da190b);
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 10px;
+                cursor: pointer;
+                font-size: 16px;
+                font-weight: bold;
+                transition: transform 0.2s;
+            `;
+            closeBtn.onmouseover = () => closeBtn.style.transform = 'scale(1.05)';
+            closeBtn.onmouseout = () => closeBtn.style.transform = 'scale(1)';
+            closeBtn.onclick = () => {
+                document.body.removeChild(modal);
+                URL.revokeObjectURL(imageUrl);
+            };
+            
+            // Create regenerate button
+            const regenerateBtn = document.createElement('button');
+            regenerateBtn.textContent = '🔄 Generate Again';
+            regenerateBtn.style.cssText = `
+                background: linear-gradient(135deg, #2196F3, #1976D2);
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 10px;
+                cursor: pointer;
+                font-size: 16px;
+                font-weight: bold;
+                transition: transform 0.2s;
+            `;
+            regenerateBtn.onmouseover = () => regenerateBtn.style.transform = 'scale(1.05)';
+            regenerateBtn.onmouseout = () => regenerateBtn.style.transform = 'scale(1)';
+            regenerateBtn.onclick = () => {
+                document.body.removeChild(modal);
+                URL.revokeObjectURL(imageUrl);
+                generateImage(); // Generate again
+            };
+            
+            // Assemble modal
+            buttonContainer.appendChild(downloadBtn);
+            buttonContainer.appendChild(regenerateBtn);
+            buttonContainer.appendChild(closeBtn);
+            
+            modalContent.appendChild(title);
+            modalContent.appendChild(previewImg);
+            modalContent.appendChild(buttonContainer);
+            
+            modal.appendChild(modalContent);
+            
+            // Add to page
+            document.body.appendChild(modal);
+            
+            // Close on background click
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                    URL.revokeObjectURL(imageUrl);
+                }
+            };
         }
 
         // Event listeners
