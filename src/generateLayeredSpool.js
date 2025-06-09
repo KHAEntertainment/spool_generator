@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const sharp = require('sharp');
+const { createCanvas, loadImage, registerFont } = require('canvas');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -8,21 +9,7 @@ const generateHash = (input) =>
   crypto.createHash("md5").update(input).digest("hex");
 
 /**
- * Generate a layered spool image using the new approach
- * @param {Object} options - Configuration options
- * @param {string} options.filter - CSS filter for faceplate
- * @param {string} options.topText - Top text
- * @param {string} options.bottomText - Bottom text
- * @param {string} options.textColor - Text color
- * @param {number} options.fontSize - Font size
- * @param {number} options.topX - Top text X position
- * @param {number} options.topY - Top text Y position
- * @param {number} options.bottomX - Bottom text X position
- * @param {number} options.bottomY - Bottom text Y position
- * @param {number} options.skewX - Text skew
- * @param {number} options.archCurve - Arch curve radius
- * @param {string} options.logoUrl - Logo URL
- * @returns {Promise<{buffer: Buffer, hash: string}>} - Image buffer and hash
+ * Generate a layered spool image using Sharp for image compositing and Canvas for text
  */
 async function generateLayeredSpoolImage({
   filter = 'hue-rotate(180deg)',
@@ -38,142 +25,154 @@ async function generateLayeredSpoolImage({
   archCurve = 100,
   logoUrl = ''
 }) {
-  // Generate hash for caching
-  const hash = generateHash(
-    `${filter}-${topText}-${bottomText}-${textColor}-${fontSize}-${topX}-${topY}-${bottomX}-${bottomY}-${skewX}-${archCurve}-${logoUrl}`
-  );
-
-  // Get absolute paths to images
-  const bgImagePath = path.join(__dirname, '../public/spool_placeholder_bg.png');
-  const fgImagePath = path.join(__dirname, '../public/spool_placeholder_fg.png');
-
-  // Verify images exist
-  if (!fs.existsSync(bgImagePath)) {
-    throw new Error(`Background image not found: ${bgImagePath}`);
-  }
-  if (!fs.existsSync(fgImagePath)) {
-    throw new Error(`Foreground image not found: ${fgImagePath}`);
-  }
-
-  // Convert to base64 data URLs for better Puppeteer compatibility
-  const bgImageData = fs.readFileSync(bgImagePath);
-  const fgImageData = fs.readFileSync(fgImagePath);
-  const bgImageBase64 = `data:image/png;base64,${bgImageData.toString('base64')}`;
-  const fgImageBase64 = `data:image/png;base64,${fgImageData.toString('base64')}`;
-
-  // Calculate positioning
-  const centerX = 256;
-  const centerY = 256;
-  
-  const topStartX = centerX + topX - archCurve;
-  const topEndX = centerX + topX + archCurve;
-  const topCenterY = centerY + topY;
-  
-  const bottomStartX = centerX + bottomX + archCurve;
-  const bottomEndX = centerX + bottomX - archCurve;
-  const bottomCenterY = centerY + bottomY;
-
-  // Create HTML template with base64 images
-  const html = `<!DOCTYPE html>
-  <html>
-    <head>
-      <style>
-        body {
-          margin: 0;
-          padding: 0;
-          width: 512px;
-          height: 512px;
-          overflow: hidden;
-          background: transparent;
-        }
-        .container {
-          position: relative;
-          width: 512px;
-          height: 512px;
-        }
-        .spool-bg, .spool-fg {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 512px;
-          height: 512px;
-          object-fit: cover;
-        }
-        .spool-fg {
-          filter: ${filter};
-        }
-        .spool-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 512px;
-          height: 512px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <img src="${bgImageBase64}" class="spool-bg" alt="Spool Background">
-        <img src="${fgImageBase64}" class="spool-fg" alt="Spool Faceplate">
-        <svg class="spool-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-          <defs>
-            <path id="topArc" d="M ${topStartX} ${topCenterY} A ${archCurve} 50 0 0 1 ${topEndX} ${topCenterY}" fill="none" />
-            <path id="bottomArc" d="M ${bottomStartX} ${bottomCenterY} A ${archCurve} 50 0 0 1 ${bottomEndX} ${bottomCenterY}" fill="none" />
-          </defs>
-          
-          <!-- Top text with arch -->
-          <text fill="${textColor}" font-family="Arial" font-size="${fontSize}" font-weight="bold" ${skewX !== 0 ? `transform="skewX(${skewX})"` : ''}>
-            <textPath href="#topArc" startOffset="50%" text-anchor="middle">
-              ${topText}
-            </textPath>
-          </text>
-          
-          <!-- Bottom text with arch -->
-          <text fill="${textColor}" font-family="Arial" font-size="${fontSize}" font-weight="bold" ${skewX !== 0 ? `transform="skewX(${skewX})"` : ''}>
-            <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">
-              ${bottomText}
-            </textPath>
-          </text>
-          
-          <!-- Logo -->
-          ${logoUrl ? `
-          <g transform="translate(${centerX}, ${centerY})">
-            <image href="${logoUrl}" x="-126" y="-17.5" width="252" height="35"/>
-          </g>
-          ` : ''}
-        </svg>
-      </div>
-    </body>
-  </html>`;
-
-  // Launch browser
-  const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: "new",
-  });
-
   try {
-    // Create new page and set viewport
-    const page = await browser.newPage();
-    await page.setViewport({ width: 512, height: 512 });
+    // Generate hash for caching
+    const hash = generateHash(
+      `${filter}-${topText}-${bottomText}-${textColor}-${fontSize}-${topX}-${topY}-${bottomX}-${bottomY}-${skewX}-${archCurve}-${logoUrl}`
+    );
 
-    // Set content and wait for images to load
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // Get absolute paths to images
+    const bgImagePath = path.join(__dirname, '../public/spool_placeholder_bg.png');
+    const fgImagePath = path.join(__dirname, '../public/spool_placeholder_fg.png');
 
-    // Wait a bit more for images to fully render
-    await page.waitForTimeout(1000);
+    // Verify images exist
+    if (!fs.existsSync(bgImagePath)) {
+      throw new Error(`Background image not found: ${bgImagePath}`);
+    }
+    if (!fs.existsSync(fgImagePath)) {
+      throw new Error(`Foreground image not found: ${fgImagePath}`);
+    }
 
-    // Take screenshot with white background (not transparent) to ensure images show
-    const buffer = await page.screenshot({
-      type: "png",
-      omitBackground: false,
-      clip: { x: 0, y: 0, width: 512, height: 512 },
-    });
+    console.log('📸 Starting Sharp-based image generation...');
+    console.log('🖼️ Background image:', bgImagePath);
+    console.log('🎨 Foreground image:', fgImagePath);
 
-    return { buffer, hash };
-  } finally {
-    // Always close the browser
-    await browser.close();
+    // Load background image
+    let compositeImage = sharp(bgImagePath)
+      .resize(512, 512, { fit: 'cover' });
+
+    // Process foreground image with color filter
+    let foregroundBuffer;
+    
+    // Parse filter to apply color transformations
+    if (filter.includes('hue-rotate')) {
+      const degrees = parseInt(filter.match(/hue-rotate\((\d+)deg\)/)?.[1] || '0');
+      foregroundBuffer = await sharp(fgImagePath)
+        .resize(512, 512, { fit: 'cover' })
+        .modulate({
+          hue: degrees
+        })
+        .png()
+        .toBuffer();
+    } else if (filter.includes('sepia')) {
+      const amount = parseFloat(filter.match(/sepia\(([0-9.]+)\)/)?.[1] || '1');
+      foregroundBuffer = await sharp(fgImagePath)
+        .resize(512, 512, { fit: 'cover' })
+        .tint({ r: 196, g: 165, b: 132 }) // Sepia tone
+        .png()
+        .toBuffer();
+    } else {
+      // Default - no filter
+      foregroundBuffer = await sharp(fgImagePath)
+        .resize(512, 512, { fit: 'cover' })
+        .png()
+        .toBuffer();
+    }
+
+    // Composite background and foreground
+    const baseComposite = await compositeImage
+      .composite([{
+        input: foregroundBuffer,
+        blend: 'over'
+      }])
+      .png()
+      .toBuffer();
+
+    console.log('✅ Base composite created successfully');
+
+    // Create canvas for text overlay
+    const canvas = createCanvas(512, 512);
+    const ctx = canvas.getContext('2d');
+
+    // Make canvas transparent
+    ctx.clearRect(0, 0, 512, 512);
+
+    // Set text properties
+    ctx.fillStyle = textColor;
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Calculate positioning (center-based coordinates)
+    const centerX = 256;
+    const centerY = 256;
+
+    // Draw curved text function
+    function drawCurvedText(text, startX, centerY, endX, curve) {
+      const chars = text.split('');
+      if (chars.length === 0) return;
+
+      const totalWidth = Math.abs(endX - startX);
+      const charSpacing = totalWidth / Math.max(chars.length - 1, 1);
+
+      chars.forEach((char, i) => {
+        const progress = chars.length > 1 ? i / (chars.length - 1) : 0.5;
+        const x = startX + (progress * totalWidth);
+        
+        // Create curve effect
+        const curveProgress = (progress - 0.5) * 2; // -1 to 1
+        const y = centerY + (curveProgress * curveProgress * (curve / 10));
+
+        ctx.save();
+        ctx.translate(x, y);
+        
+        // Apply skew if specified
+        if (skewX !== 0) {
+          ctx.transform(1, 0, Math.tan(skewX * Math.PI / 180), 1, 0, 0);
+        }
+        
+        ctx.fillText(char, 0, 0);
+        ctx.restore();
+      });
+    }
+
+    // Draw top text (curved)
+    if (topText) {
+      const topStartX = centerX + topX - archCurve;
+      const topEndX = centerX + topX + archCurve;
+      const topCenterY = centerY + topY;
+      drawCurvedText(topText, topStartX, topCenterY, topEndX, archCurve);
+    }
+
+    // Draw bottom text (curved, inverted)
+    if (bottomText) {
+      const bottomStartX = centerX + bottomX + archCurve;
+      const bottomEndX = centerX + bottomX - archCurve;
+      const bottomCenterY = centerY + bottomY;
+      drawCurvedText(bottomText, bottomStartX, bottomCenterY, bottomEndX, -archCurve);
+    }
+
+    console.log('✅ Text overlay created successfully');
+
+    // Convert canvas to buffer
+    const textBuffer = canvas.toBuffer('image/png');
+
+    // Final composite with text overlay
+    const finalBuffer = await sharp(baseComposite)
+      .composite([{
+        input: textBuffer,
+        blend: 'over'
+      }])
+      .png()
+      .toBuffer();
+
+    console.log('🎉 Final image generation complete!');
+
+    return { buffer: finalBuffer, hash };
+
+  } catch (error) {
+    console.error('❌ Error in Sharp-based generation:', error);
+    throw error;
   }
 }
 
