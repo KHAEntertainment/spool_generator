@@ -1,0 +1,91 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spool Label Overlay Test (Interactive)</title>
+  <style>
+    body {
+      background: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      color: white;
+      font-family: sans-serif;
+    }
+    .preview {
+      position: relative;
+      width: 512px;
+      height: 512px;
+      margin-bottom: 1rem;
+    }
+    .preview img {
+      position: absolute;
+      width: 512px;
+      height: 512px;
+    }
+    .overlay {
+      position: absolute;
+      width: 512px;
+      height: 512px;
+      pointer-events: none;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.8rem;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview">
+    <img src="spool_base.png" alt="Spool Base" />
+    <svg class="overlay" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <path id="topArc" d="M 160,220 A 90,90 0 0,1 352,220" fill="none" />
+        <path id="bottomArc" d="M 352,300 A 90,90 0 0,1 160,300" fill="none" />
+      </defs>
+      <text id="topText" fill="#00BFFF" font-family="Arial" font-size="22" letter-spacing="1">
+        <textPath href="#topArc" startOffset="50%" dominant-baseline="middle" text-anchor="middle">
+          POLYMAKER
+        </textPath>
+      </text>
+      <text id="bottomText" fill="#00BFFF" font-family="Arial" font-size="20" letter-spacing="1">
+        <textPath href="#bottomArc" startOffset="50%" dominant-baseline="middle" text-anchor="middle">
+          PLA PRO
+        </textPath>
+      </text>
+    </svg>
+  </div>  <div class="controls">
+    <label>
+      Top Skew (deg)
+      <input type="range" id="topSkew" min="-30" max="30" value="0" />
+    </label>
+    <label>
+      Bottom Skew (deg)
+      <input type="range" id="bottomSkew" min="-30" max="30" value="0" />
+    </label>
+  </div>  <script>
+    const topSkewInput = document.getElementById("topSkew");
+    const bottomSkewInput = document.getElementById("bottomSkew");
+    const topText = document.getElementById("topText");
+    const bottomText = document.getElementById("bottomText");
+
+    topSkewInput.addEventListener("input", () => {
+      const val = topSkewInput.value;
+      topText.setAttribute("transform", `skewX(${val})`);
+    });
+
+    bottomSkewInput.addEventListener("input", () => {
+      const val = bottomSkewInput.value;
+      bottomText.setAttribute("transform", `skewX(${val})`);
+    });
+  </script></body>
+</html>
+

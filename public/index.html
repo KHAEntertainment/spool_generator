@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spool Generator - Interactive Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            padding: 40px;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .form-section h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="color"],
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .form-group input[type="color"] {
+            height: 50px;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .color-presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .color-preset {
+            width: 60px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .color-preset:hover {
+            transform: scale(1.1);
+            border-color: #4facfe;
+        }
+
+        .color-preset.active {
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.3);
+        }
+
+        .preset-examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .preset-example {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .preset-example:hover {
+            border-color: #4facfe;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .preset-example h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .preset-example p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .preview-section {
+            text-align: center;
+        }
+
+        .preview-section h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+        }
+
+        .preview-container {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .preview-image:hover {
+            transform: scale(1.05);
+        }
+
+        .loading {
+            display: none;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .info-panel {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .info-panel h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .info-panel p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .color-presets {
+                grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+            }
+
+            .preset-examples {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Spool Generator</h1>
+            <p>Create custom 3D printing spool labels with dynamic text and colors</p>
+        </div>
+
+        <div class="main-content">
+            <div class="form-section">
+                <h2>Customize Your Spool</h2>
+                
+                <div class="form-group">
+                    <label for="topText">Top Text</label>
+                    <input type="text" id="topText" value="POLYMAKER" placeholder="Enter top text">
+                </div>
+
+                <div class="form-group">
+                    <label for="bottomText">Bottom Text</label>
+                    <input type="text" id="bottomText" value="PLA PRO" placeholder="Enter bottom text">
+                </div>
+
+                <div class="form-group">
+                    <label for="colorPicker">Text Color</label>
+                    <input type="color" id="colorPicker" value="#FF5722">
+                    
+                    <div class="color-presets">
+                        <div class="color-preset" style="background-color: #FF5722;" data-color="#FF5722" title="Orange Red"></div>
+                        <div class="color-preset" style="background-color: #4CAF50;" data-color="#4CAF50" title="Green"></div>
+                        <div class="color-preset" style="background-color: #2196F3;" data-color="#2196F3" title="Blue"></div>
+                        <div class="color-preset" style="background-color: #FF9800;" data-color="#FF9800" title="Orange"></div>
+                        <div class="color-preset" style="background-color: #9C27B0;" data-color="#9C27B0" title="Purple"></div>
+                        <div class="color-preset" style="background-color: #607D8B;" data-color="#607D8B" title="Blue Grey"></div>
+                        <div class="color-preset" style="background-color: #795548;" data-color="#795548" title="Brown"></div>
+                        <div class="color-preset" style="background-color: #333333;" data-color="#333333" title="Dark Grey"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="logoSvg">Logo SVG (Optional)</label>
+                    <textarea id="logoSvg" placeholder="Paste SVG code here (optional)"></textarea>
+                </div>
+
+                <button class="generate-btn" onclick="generateSpool()">Generate Spool Image</button>
+
+                <div class="preset-examples">
+                    <div class="preset-example" onclick="loadPreset('POLYMAKER', 'PLA PRO', '#FF5722')">
+                        <h4>Polymaker PLA</h4>
+                        <p>Orange branding</p>
+                    </div>
+                    <div class="preset-example" onclick="loadPreset('HATCHBOX', 'PETG', '#4CAF50')">
+                        <h4>Hatchbox PETG</h4>
+                        <p>Green styling</p>
+                    </div>
+                    <div class="preset-example" onclick="loadPreset('PRUSAMENT', 'ABS', '#2196F3')">
+                        <h4>Prusament ABS</h4>
+                        <p>Blue theme</p>
+                    </div>
+                    <div class="preset-example" onclick="loadPreset('OVERTURE', 'TPU', '#FF9800')">
+                        <h4>Overture TPU</h4>
+                        <p>Orange accent</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-section">
+                <h2>Live Preview</h2>
+                <div class="preview-container">
+                    <div class="loading" id="loading">🔄 Generating your spool...</div>
+                    <img id="previewImage" class="preview-image" style="display: none;" alt="Generated Spool">
+                    <div id="placeholder" style="color: #999; font-size: 1.1rem;">
+                        Click "Generate Spool Image" to see your custom spool
+                    </div>
+                </div>
+                <button class="download-btn" id="downloadBtn" style="display: none;" onclick="downloadImage()">
+                    📥 Download Image
+                </button>
+
+                <div class="info-panel">
+                    <h3>💡 Tips</h3>
+                    <p>
+                        • Use short text for best results<br>
+                        • Try different colors to match your filament<br>
+                        • SVG logos will be centered and scaled automatically<br>
+                        • Images are generated at 512x512 pixels with transparent background
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImageUrl = '';
+
+        // Color preset functionality
+        document.querySelectorAll('.color-preset').forEach(preset => {
+            preset.addEventListener('click', function() {
+                const color = this.dataset.color;
+                document.getElementById('colorPicker').value = color;
+                
+                // Update active state
+                document.querySelectorAll('.color-preset').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Auto-generate on input changes
+        document.getElementById('topText').addEventListener('input', debounce(generateSpool, 1000));
+        document.getElementById('bottomText').addEventListener('input', debounce(generateSpool, 1000));
+        document.getElementById('colorPicker').addEventListener('change', generateSpool);
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function loadPreset(top, bottom, color) {
+            document.getElementById('topText').value = top;
+            document.getElementById('bottomText').value = bottom;
+            document.getElementById('colorPicker').value = color;
+            document.getElementById('logoSvg').value = '';
+            
+            // Update color preset active state
+            document.querySelectorAll('.color-preset').forEach(p => p.classList.remove('active'));
+            document.querySelector(`[data-color="${color}"]`)?.classList.add('active');
+            
+            generateSpool();
+        }
+
+        async function generateSpool() {
+            const topText = document.getElementById('topText').value || 'CUSTOM';
+            const bottomText = document.getElementById('bottomText').value || 'MATERIAL';
+            const color = document.getElementById('colorPicker').value || '#444444';
+            const logo = document.getElementById('logoSvg').value || '';
+
+            // Show loading state
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('previewImage').style.display = 'none';
+            document.getElementById('placeholder').style.display = 'none';
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.querySelector('.generate-btn').disabled = true;
+
+            try {
+                // Build URL with parameters
+                const params = new URLSearchParams({
+                    top: topText,
+                    bottom: bottomText,
+                    color: color,
+                    logo: logo
+                });
+
+                const imageUrl = `/generate-spool?${params}`;
+                currentImageUrl = imageUrl;
+
+                // Create new image element to test loading
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById('loading').classList.remove('show');
+                    document.getElementById('previewImage').src = imageUrl;
+                    document.getElementById('previewImage').style.display = 'block';
+                    document.getElementById('downloadBtn').style.display = 'inline-block';
+                    document.querySelector('.generate-btn').disabled = false;
+                };
+                
+                img.onerror = function() {
+                    document.getElementById('loading').classList.remove('show');
+                    document.getElementById('placeholder').innerHTML = '❌ Error generating image. Please try again.';
+                    document.getElementById('placeholder').style.display = 'block';
+                    document.querySelector('.generate-btn').disabled = false;
+                };
+
+                img.src = imageUrl;
+
+            } catch (error) {
+                console.error('Error generating spool:', error);
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('placeholder').innerHTML = '❌ Error generating image. Please try again.';
+                document.getElementById('placeholder').style.display = 'block';
+                document.querySelector('.generate-btn').disabled = false;
+            }
+        }
+
+        async function downloadImage() {
+            if (!currentImageUrl) return;
+
+            try {
+                const response = await fetch(currentImageUrl);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `spool_${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading image:', error);
+                alert('Error downloading image. Please try again.');
+            }
+        }
+
+        // Generate initial image
+        window.addEventListener('load', () => {
+            setTimeout(generateSpool, 500);
+        });
+    </script>
+</body>
+</html>
+

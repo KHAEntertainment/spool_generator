@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spool Generator - Layered Approach</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .preview-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .controls-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .spool-preview {
+            position: relative;
+            width: 512px;
+            height: 512px;
+            margin: 0 auto;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .spool-bg, .spool-fg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .spool-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-item label {
+            font-size: 14px;
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .control-item input[type="text"],
+        .control-item input[type="color"] {
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .control-item input[type="text"]:focus,
+        .control-item input[type="color"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .control-item input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-item input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-item input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .filter-presets {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .filter-preset {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-preset:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #4CAF50;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-message.success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #4CAF50;
+            opacity: 1;
+        }
+
+        .status-message.error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            color: #f44336;
+            opacity: 1;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .spool-preview {
+                width: 400px;
+                height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .spool-preview {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .control-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="preview-section">
+            <h1 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🎯 Layered Spool Generator</h1>
+            <p style="text-align: center; margin-bottom: 30px; opacity: 0.8;">Real-time preview with CSS filters + Puppeteer generation</p>
+            
+            <div class="spool-preview">
+                <img src="/spool_placeholder_bg.png" class="spool-bg" alt="Spool Background">
+                <img src="/spool_placeholder_fg.png" class="spool-fg" id="spool-faceplate" alt="Spool Faceplate">
+                <svg class="spool-overlay" id="spool-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                    <defs>
+                        <path id="topArc" d="M 156 200 A 100 50 0 0 1 356 200" fill="none" />
+                        <path id="bottomArc" d="M 356 312 A 100 50 0 0 1 156 312" fill="none" />
+                    </defs>
+                    
+                    <!-- Top text with arch -->
+                    <text fill="#00bfff" font-family="Arial" font-size="37" id="top-text">
+                        <textPath href="#topArc" startOffset="50%" text-anchor="middle">
+                            POLYMAKER
+                        </textPath>
+                    </text>
+                    
+                    <!-- Bottom text with arch -->
+                    <text fill="#00bfff" font-family="Arial" font-size="35" id="bottom-text">
+                        <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">
+                            PLA PRO
+                        </textPath>
+                    </text>
+                    
+                    <!-- Logo placeholder -->
+                    <g id="logo-container" transform="translate(256, 256)">
+                        <!-- Logo will be inserted here -->
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="control-group">
+                <h3>🎨 Faceplate Color</h3>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Filter Type</label>
+                        <select id="filter-type" style="padding: 12px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 10px; background: rgba(255, 255, 255, 0.1); color: white;">
+                            <option value="hue-rotate">Hue Rotate</option>
+                            <option value="sepia">Sepia</option>
+                            <option value="saturate">Saturate</option>
+                            <option value="brightness">Brightness</option>
+                            <option value="contrast">Contrast</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>Filter Value: <span id="filter-value-display">180</span></label>
+                        <input type="range" id="filter-value" min="0" max="360" value="180">
+                    </div>
+                </div>
+                
+                <div class="filter-presets">
+                    <div class="filter-preset" data-filter="hue-rotate(0deg)">Original</div>
+                    <div class="filter-preset" data-filter="hue-rotate(120deg) saturate(1.5)">Green</div>
+                    <div class="filter-preset" data-filter="hue-rotate(240deg) saturate(1.3)">Blue</div>
+                    <div class="filter-preset" data-filter="hue-rotate(60deg) saturate(1.4)">Yellow</div>
+                    <div class="filter-preset" data-filter="hue-rotate(300deg) saturate(1.2)">Purple</div>
+                    <div class="filter-preset" data-filter="sepia(1) saturate(2)">Orange</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>📝 Text Content</h3>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Top Text</label>
+                        <input type="text" id="top-text-input" value="POLYMAKER">
+                    </div>
+                    <div class="control-item">
+                        <label>Bottom Text</label>
+                        <input type="text" id="bottom-text-input" value="PLA PRO">
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Text Color</label>
+                        <input type="color" id="text-color" value="#00bfff">
+                    </div>
+                    <div class="control-item">
+                        <label>Font Size: <span id="font-size-display">37</span>px</label>
+                        <input type="range" id="font-size" min="20" max="60" value="37">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>📐 Text Positioning</h3>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Top X: <span id="top-x-display">0</span></label>
+                        <input type="range" id="top-x" min="-100" max="100" value="0">
+                    </div>
+                    <div class="control-item">
+                        <label>Top Y: <span id="top-y-display">-56</span></label>
+                        <input type="range" id="top-y" min="-150" max="150" value="-56">
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Bottom X: <span id="bottom-x-display">0</span></label>
+                        <input type="range" id="bottom-x" min="-100" max="100" value="0">
+                    </div>
+                    <div class="control-item">
+                        <label>Bottom Y: <span id="bottom-y-display">56</span></label>
+                        <input type="range" id="bottom-y" min="-150" max="150" value="56">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🔄 Text Effects</h3>
+                <div class="control-row">
+                    <div class="control-item">
+                        <label>Skew X: <span id="skew-x-display">0</span>°</label>
+                        <input type="range" id="skew-x" min="-30" max="30" value="0">
+                    </div>
+                    <div class="control-item">
+                        <label>Arch Curve: <span id="arch-curve-display">100</span></label>
+                        <input type="range" id="arch-curve" min="50" max="200" value="100">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🏷️ Logo</h3>
+                <div class="control-item">
+                    <label>Logo URL (optional)</label>
+                    <input type="text" id="logo-url" placeholder="https://example.com/logo.svg">
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="generate-btn">🚀 Generate Final Image</button>
+                <button class="btn btn-secondary" id="download-btn">💾 Download Image</button>
+            </div>
+
+            <div class="status-message" id="status-message"></div>
+        </div>
+    </div>
+
+    <script>
+        // Get all control elements
+        const elements = {
+            faceplate: document.getElementById('spool-faceplate'),
+            topText: document.getElementById('top-text'),
+            bottomText: document.getElementById('bottom-text'),
+            logoContainer: document.getElementById('logo-container'),
+            
+            // Controls
+            filterType: document.getElementById('filter-type'),
+            filterValue: document.getElementById('filter-value'),
+            filterValueDisplay: document.getElementById('filter-value-display'),
+            topTextInput: document.getElementById('top-text-input'),
+            bottomTextInput: document.getElementById('bottom-text-input'),
+            textColor: document.getElementById('text-color'),
+            fontSize: document.getElementById('font-size'),
+            fontSizeDisplay: document.getElementById('font-size-display'),
+            topX: document.getElementById('top-x'),
+            topXDisplay: document.getElementById('top-x-display'),
+            topY: document.getElementById('top-y'),
+            topYDisplay: document.getElementById('top-y-display'),
+            bottomX: document.getElementById('bottom-x'),
+            bottomXDisplay: document.getElementById('bottom-x-display'),
+            bottomY: document.getElementById('bottom-y'),
+            bottomYDisplay: document.getElementById('bottom-y-display'),
+            skewX: document.getElementById('skew-x'),
+            skewXDisplay: document.getElementById('skew-x-display'),
+            archCurve: document.getElementById('arch-curve'),
+            archCurveDisplay: document.getElementById('arch-curve-display'),
+            logoUrl: document.getElementById('logo-url'),
+            
+            generateBtn: document.getElementById('generate-btn'),
+            downloadBtn: document.getElementById('download-btn'),
+            statusMessage: document.getElementById('status-message')
+        };
+
+        // Current state
+        let currentState = {
+            filter: 'hue-rotate(180deg)',
+            topText: 'POLYMAKER',
+            bottomText: 'PLA PRO',
+            textColor: '#00bfff',
+            fontSize: 37,
+            topX: 0,
+            topY: -56,
+            bottomX: 0,
+            bottomY: 56,
+            skewX: 0,
+            archCurve: 100,
+            logoUrl: ''
+        };
+
+        // Update filter
+        function updateFilter() {
+            const type = elements.filterType.value;
+            const value = elements.filterValue.value;
+            
+            let filter;
+            switch(type) {
+                case 'hue-rotate':
+                    filter = `hue-rotate(${value}deg)`;
+                    elements.filterValue.max = 360;
+                    break;
+                case 'sepia':
+                    filter = `sepia(${value / 100})`;
+                    elements.filterValue.max = 100;
+                    break;
+                case 'saturate':
+                    filter = `saturate(${value / 50})`;
+                    elements.filterValue.max = 200;
+                    break;
+                case 'brightness':
+                    filter = `brightness(${value / 100})`;
+                    elements.filterValue.max = 200;
+                    break;
+                case 'contrast':
+                    filter = `contrast(${value / 100})`;
+                    elements.filterValue.max = 200;
+                    break;
+            }
+            
+            elements.faceplate.style.filter = filter;
+            currentState.filter = filter;
+            elements.filterValueDisplay.textContent = value;
+        }
+
+        // Update text content
+        function updateText() {
+            const topTextPath = elements.topText.querySelector('textPath');
+            const bottomTextPath = elements.bottomText.querySelector('textPath');
+            
+            if (topTextPath) topTextPath.textContent = elements.topTextInput.value;
+            if (bottomTextPath) bottomTextPath.textContent = elements.bottomTextInput.value;
+            
+            currentState.topText = elements.topTextInput.value;
+            currentState.bottomText = elements.bottomTextInput.value;
+        }
+
+        // Update text color
+        function updateTextColor() {
+            const color = elements.textColor.value;
+            elements.topText.setAttribute('fill', color);
+            elements.bottomText.setAttribute('fill', color);
+            currentState.textColor = color;
+        }
+
+        // Update font size
+        function updateFontSize() {
+            const size = elements.fontSize.value;
+            elements.topText.setAttribute('font-size', size);
+            elements.bottomText.setAttribute('font-size', size);
+            elements.fontSizeDisplay.textContent = size;
+            currentState.fontSize = parseInt(size);
+        }
+
+        // Update positioning
+        function updatePositioning() {
+            const topX = parseInt(elements.topX.value);
+            const topY = parseInt(elements.topY.value);
+            const bottomX = parseInt(elements.bottomX.value);
+            const bottomY = parseInt(elements.bottomY.value);
+            const skewX = parseInt(elements.skewX.value);
+            const archCurve = parseInt(elements.archCurve.value);
+            
+            // Update arc paths
+            const topArc = document.getElementById('topArc');
+            const bottomArc = document.getElementById('bottomArc');
+            
+            const centerX = 256;
+            const centerY = 256;
+            
+            const topStartX = centerX + topX - archCurve;
+            const topEndX = centerX + topX + archCurve;
+            const topCenterY = centerY + topY;
+            
+            const bottomStartX = centerX + bottomX + archCurve;
+            const bottomEndX = centerX + bottomX - archCurve;
+            const bottomCenterY = centerY + bottomY;
+            
+            topArc.setAttribute('d', `M ${topStartX} ${topCenterY} A ${archCurve} 50 0 0 1 ${topEndX} ${topCenterY}`);
+            bottomArc.setAttribute('d', `M ${bottomStartX} ${bottomCenterY} A ${archCurve} 50 0 0 1 ${bottomEndX} ${bottomCenterY}`);
+            
+            // Apply skew
+            if (skewX !== 0) {
+                elements.topText.setAttribute('transform', `skewX(${skewX})`);
+                elements.bottomText.setAttribute('transform', `skewX(${skewX})`);
+            } else {
+                elements.topText.removeAttribute('transform');
+                elements.bottomText.removeAttribute('transform');
+            }
+            
+            // Update displays
+            elements.topXDisplay.textContent = topX;
+            elements.topYDisplay.textContent = topY;
+            elements.bottomXDisplay.textContent = bottomX;
+            elements.bottomYDisplay.textContent = bottomY;
+            elements.skewXDisplay.textContent = skewX;
+            elements.archCurveDisplay.textContent = archCurve;
+            
+            // Update state
+            currentState.topX = topX;
+            currentState.topY = topY;
+            currentState.bottomX = bottomX;
+            currentState.bottomY = bottomY;
+            currentState.skewX = skewX;
+            currentState.archCurve = archCurve;
+        }
+
+        // Update logo
+        function updateLogo() {
+            const logoUrl = elements.logoUrl.value.trim();
+            currentState.logoUrl = logoUrl;
+            
+            if (logoUrl) {
+                elements.logoContainer.innerHTML = `
+                    <image href="${logoUrl}" x="-126" y="-17.5" width="252" height="35"/>
+                `;
+            } else {
+                elements.logoContainer.innerHTML = '';
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'success') {
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.className = `status-message ${type}`;
+            
+            setTimeout(() => {
+                elements.statusMessage.className = 'status-message';
+            }, 3000);
+        }
+
+        // Generate final image
+        async function generateImage() {
+            elements.generateBtn.disabled = true;
+            elements.generateBtn.textContent = '⏳ Generating...';
+            
+            try {
+                const params = new URLSearchParams({
+                    filter: currentState.filter,
+                    topText: currentState.topText,
+                    bottomText: currentState.bottomText,
+                    textColor: currentState.textColor,
+                    fontSize: currentState.fontSize,
+                    topX: currentState.topX,
+                    topY: currentState.topY,
+                    bottomX: currentState.bottomX,
+                    bottomY: currentState.bottomY,
+                    skewX: currentState.skewX,
+                    archCurve: currentState.archCurve,
+                    logoUrl: currentState.logoUrl
+                });
+                
+                const response = await fetch(`/generate-layered-spool?${params}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Create download link
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `spool_${Date.now()}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showStatus('✅ Spool generated successfully!', 'success');
+                } else {
+                    throw new Error('Generation failed');
+                }
+            } catch (error) {
+                console.error('Generation error:', error);
+                showStatus('❌ Generation failed. Please try again.', 'error');
+            } finally {
+                elements.generateBtn.disabled = false;
+                elements.generateBtn.textContent = '🚀 Generate Final Image';
+            }
+        }
+
+        // Event listeners
+        elements.filterType.addEventListener('change', updateFilter);
+        elements.filterValue.addEventListener('input', updateFilter);
+        elements.topTextInput.addEventListener('input', updateText);
+        elements.bottomTextInput.addEventListener('input', updateText);
+        elements.textColor.addEventListener('input', updateTextColor);
+        elements.fontSize.addEventListener('input', updateFontSize);
+        elements.topX.addEventListener('input', updatePositioning);
+        elements.topY.addEventListener('input', updatePositioning);
+        elements.bottomX.addEventListener('input', updatePositioning);
+        elements.bottomY.addEventListener('input', updatePositioning);
+        elements.skewX.addEventListener('input', updatePositioning);
+        elements.archCurve.addEventListener('input', updatePositioning);
+        elements.logoUrl.addEventListener('input', updateLogo);
+        elements.generateBtn.addEventListener('click', generateImage);
+
+        // Filter presets
+        document.querySelectorAll('.filter-preset').forEach(preset => {
+            preset.addEventListener('click', () => {
+                const filter = preset.dataset.filter;
+                elements.faceplate.style.filter = filter;
+                currentState.filter = filter;
+                showStatus(`Applied ${preset.textContent} filter`, 'success');
+            });
+        });
+
+        // Initialize
+        updateFilter();
+        updateText();
+        updateTextColor();
+        updateFontSize();
+        updatePositioning();
+        updateLogo();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,156 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spool Label Overlay Test (Full Controls)</title>
+  <style>
+    body {
+      background: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      color: white;
+      font-family: sans-serif;
+    }
+    .preview {
+      position: relative;
+      width: 512px;
+      height: 512px;
+      margin-bottom: 1rem;
+    }
+    .preview img {
+      position: absolute;
+      width: 512px;
+      height: 512px;
+    }
+    .overlay {
+      position: absolute;
+      width: 512px;
+      height: 512px;
+      pointer-events: none;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+      max-width: 1000px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.8rem;
+      align-items: center;
+    }
+    #output {
+      margin-top: 1rem;
+      background: #111;
+      padding: 1rem;
+      font-size: 0.75rem;
+      border: 1px solid #444;
+      border-radius: 6px;
+      max-width: 900px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview">
+    <img src="spool_base.png" alt="Spool Base" />
+    <svg class="overlay" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <!-- Simplified SVG structure without textPath - direct text positioning -->
+      <text fill="#00BFFF" font-family="Arial" font-size="37" transform="skewX(-3) translate(84, 16)">
+        POLYMAKER
+      </text>
+      <text fill="#00BFFF" font-family="Arial" font-size="35" transform="skewX(-7) translate(100, -4)">
+        PLA PRO
+      </text>
+      <image href="https://polymaker.com/wp-content/uploads/polymaker-full-logo.svg" x="210" y="81" width="252" height="35"/>
+    </svg>
+  </div>  <div class="controls">
+    <!-- Top Text Controls -->
+    <label>Top Skew (deg)<input type="range" id="topSkew" min="-30" max="30" value="0"></label>
+    <label>Top X Offset<input type="range" id="topX" min="-100" max="100" value="0"></label>
+    <label>Top Y Offset<input type="range" id="topY" min="-100" max="100" value="0"></label>
+    <label>Top Font Size<input type="range" id="topSize" min="10" max="40" value="22"></label><!-- Bottom Text Controls -->
+<label>Bottom Skew (deg)<input type="range" id="bottomSkew" min="-30" max="30" value="0"></label>
+<label>Bottom X Offset<input type="range" id="bottomX" min="-100" max="100" value="0"></label>
+<label>Bottom Y Offset<input type="range" id="bottomY" min="-100" max="100" value="0"></label>
+<label>Bottom Font Size<input type="range" id="bottomSize" min="10" max="40" value="20"></label>
+
+<!-- Logo Controls -->
+<label>Logo X<input type="range" id="logoX" min="0" max="400" value="180"></label>
+<label>Logo Y<input type="range" id="logoY" min="0" max="400" value="180"></label>
+<label>Logo Width<input type="range" id="logoWidth" min="20" max="300" value="150"></label>
+<label>Logo Height<input type="range" id="logoHeight" min="10" max="100" value="40"></label>
+
+  </div>  <pre id="output"></pre>  <script>
+    const topText = document.getElementById("topText");
+    const bottomText = document.getElementById("bottomText");
+    const logo = document.getElementById("logo");
+    const output = document.getElementById("output");
+
+    const controls = [
+      "topSkew", "topX", "topY", "topSize",
+      "bottomSkew", "bottomX", "bottomY", "bottomSize",
+      "logoX", "logoY", "logoWidth", "logoHeight"
+    ];
+
+    controls.forEach(id => {
+      document.getElementById(id).addEventListener("input", updateAttributes);
+    });
+
+    function updateAttributes() {
+      const tSkew = document.getElementById("topSkew").value;
+      const tX = document.getElementById("topX").value;
+      const tY = document.getElementById("topY").value;
+      const tSize = document.getElementById("topSize").value;
+
+      const bSkew = document.getElementById("bottomSkew").value;
+      const bX = document.getElementById("bottomX").value;
+      const bY = document.getElementById("bottomY").value;
+      const bSize = document.getElementById("bottomSize").value;
+
+      const lX = document.getElementById("logoX").value;
+      const lY = document.getElementById("logoY").value;
+      const lW = document.getElementById("logoWidth").value;
+      const lH = document.getElementById("logoHeight").value;
+
+      topText.setAttribute("transform", `skewX(${tSkew}) translate(${tX}, ${tY})`);
+      topText.setAttribute("font-size", tSize);
+
+      bottomText.setAttribute("transform", `skewX(${bSkew}) translate(${bX}, ${bY})`);
+      bottomText.setAttribute("font-size", bSize);
+
+      logo.setAttribute("x", lX);
+      logo.setAttribute("y", lY);
+      logo.setAttribute("width", lW);
+      logo.setAttribute("height", lH);
+
+      output.textContent = `{
+  topText: {
+    skew: ${tSkew},
+    x: ${tX},
+    y: ${tY},
+    fontSize: ${tSize}
+  },
+  bottomText: {
+    skew: ${bSkew},
+    x: ${bX},
+    y: ${bY},
+    fontSize: ${bSize}
+  },
+  logo: {
+    x: ${lX},
+    y: ${lY},
+    width: ${lW},
+    height: ${lH}
+  }
+}`;
+    }
+
+    updateAttributes();
+  </script></body>
+</html>
+
