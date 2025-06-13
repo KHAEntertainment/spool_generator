@@ -55,24 +55,77 @@ async function generateLayeredSpoolImage({
     let foregroundBuffer;
     
     // Parse filter to apply color transformations
+    console.log('🎨 Processing filter:', filter);
+    
     if (filter.includes('hue-rotate')) {
       const degrees = parseInt(filter.match(/hue-rotate\((\d+)deg\)/)?.[1] || '0');
+      console.log('🌈 Applying hue rotation:', degrees, 'degrees');
+      
+      // Convert hue degrees to RGB color for tinting
+      const hueToRgb = (hue) => {
+        const h = (hue % 360) / 60;
+        const c = 1;
+        const x = c * (1 - Math.abs((h % 2) - 1));
+        
+        let r, g, b;
+        if (h >= 0 && h < 1) { r = c; g = x; b = 0; }
+        else if (h >= 1 && h < 2) { r = x; g = c; b = 0; }
+        else if (h >= 2 && h < 3) { r = 0; g = c; b = x; }
+        else if (h >= 3 && h < 4) { r = 0; g = x; b = c; }
+        else if (h >= 4 && h < 5) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+        
+        return {
+          r: Math.round(r * 255),
+          g: Math.round(g * 255),
+          b: Math.round(b * 255)
+        };
+      };
+      
+      const tintColor = hueToRgb(degrees);
+      console.log('🎨 Tint color:', tintColor);
+      
       foregroundBuffer = await sharp(fgImagePath)
         .resize(512, 512, { fit: 'cover' })
-        .modulate({
-          hue: degrees
-        })
+        .tint(tintColor)
         .png()
         .toBuffer();
+        
+      console.log('✅ Color tint applied successfully');
     } else if (filter.includes('sepia')) {
       const amount = parseFloat(filter.match(/sepia\(([0-9.]+)\)/)?.[1] || '1');
+      console.log('🟤 Applying sepia filter:', amount);
+      
       foregroundBuffer = await sharp(fgImagePath)
         .resize(512, 512, { fit: 'cover' })
         .tint({ r: 196, g: 165, b: 132 }) // Sepia tone
         .png()
         .toBuffer();
+    } else if (filter.includes('saturate')) {
+      const amount = parseFloat(filter.match(/saturate\(([0-9.]+)\)/)?.[1] || '1');
+      console.log('🎨 Applying saturation:', amount);
+      
+      foregroundBuffer = await sharp(fgImagePath)
+        .resize(512, 512, { fit: 'cover' })
+        .modulate({
+          saturation: amount
+        })
+        .png()
+        .toBuffer();
+    } else if (filter.includes('brightness')) {
+      const amount = parseFloat(filter.match(/brightness\(([0-9.]+)\)/)?.[1] || '1');
+      console.log('💡 Applying brightness:', amount);
+      
+      foregroundBuffer = await sharp(fgImagePath)
+        .resize(512, 512, { fit: 'cover' })
+        .modulate({
+          brightness: amount
+        })
+        .png()
+        .toBuffer();
     } else {
       // Default - no filter
+      console.log('⚪ No filter applied, using original colors');
       foregroundBuffer = await sharp(fgImagePath)
         .resize(512, 512, { fit: 'cover' })
         .png()
